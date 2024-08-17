@@ -49,6 +49,7 @@ main(int argc, char** argv)
     char binary_output_filename[PATH_MAX_LEN] = "";
     char line[BUFF_LEN];
     FILE *assembly_code_file;
+    uint8_t *machinecode_buffer;
 
     /* parsing arguments */
     while ((opt = getopt(argc, argv, "vli:o:")) != -1) {
@@ -98,7 +99,7 @@ main(int argc, char** argv)
     uint16_t pc_offset = 0;
     bool pc_offset_set = false;
 
-    uint8_t* buffer = (uint8_t*)malloc(0);
+    machinecode_buffer = malloc(0);
     uint8_t* bytes = (uint8_t*)malloc(3);
 
     labels = malloc(0);
@@ -137,9 +138,9 @@ main(int argc, char** argv)
             }
 
             program_counter += op_size;
-            buffer = (uint8_t*)realloc(buffer, program_counter * sizeof(uint8_t));
+            machinecode_buffer = (uint8_t*)realloc(machinecode_buffer, program_counter * sizeof(uint8_t));
             for (int i = 0; i < op_size; i++) {
-                buffer[program_counter - op_size + i] = bytes[i];
+                machinecode_buffer[program_counter - op_size + i] = bytes[i];
             }
 
             break;
@@ -159,17 +160,18 @@ main(int argc, char** argv)
                     pc_offset_set = true;
                 }
             } else if (strcmp(line, ".byte") == 0) {
-                buffer = (uint8_t*) realloc(buffer, (program_counter + 1) * sizeof(uint8_t) ); 
-                buffer[program_counter] = parse_number(args, zeropage) & 0x00ff;
+                machinecode_buffer = (uint8_t*) realloc(machinecode_buffer, (program_counter + 1) * sizeof(uint8_t) ); 
+                machinecode_buffer[program_counter] = parse_number(args, zeropage) & 0x00ff;
                 program_counter++;
             } else if (strcmp(line, ".word") == 0) {
-                buffer = (uint8_t*) realloc(buffer, (program_counter + 2) * sizeof(uint8_t) );buffer[program_counter] = (parse_number(args, absolute) & 0x00ff);
-                buffer[program_counter + 1] =
+                machinecode_buffer = (uint8_t*) realloc(machinecode_buffer, (program_counter + 2) * sizeof(uint8_t) );
+                machinecode_buffer[program_counter] = (parse_number(args, absolute) & 0x00ff);
+                machinecode_buffer[program_counter + 1] =
                     (parse_number(line, absolute) & 0xff00) >> 8;
                 program_counter += 2;
             } else if (strcmp(line, ".str") == 0) {
                 for (arb_index = 1; arb_index < strlen(line) - 1; arb_index++) {  
-                    buffer[program_counter++] = line[arb_index];
+                    machinecode_buffer[program_counter++] = line[arb_index];
                 }
             }
             break;
@@ -196,10 +198,10 @@ main(int argc, char** argv)
                 if (label_references[i].rel) {
                     /* signed */ int8_t b =
                         (int8_t)((labels[j].pc - label_references[i].pc - 2) & 0x00ff);
-                    buffer[label_references[i].pc + 1] = b;
+                    machinecode_buffer[label_references[i].pc + 1] = b;
                 } else {
-                    buffer[label_references[i].pc + 1] = (labels[j].pc & 0x00ff);
-                    buffer[label_references[i].pc + 2] = (labels[j].pc & 0xff00) >> 8;
+                    machinecode_buffer[label_references[i].pc + 1] = (labels[j].pc & 0x00ff);
+                    machinecode_buffer[label_references[i].pc + 2] = (labels[j].pc & 0xff00) >> 8;
                 }
             }
         }
@@ -226,7 +228,7 @@ main(int argc, char** argv)
 
         do {
             char* line_print;
-            pc_add = disassemble_line(&line_print, buffer, i, false);
+            pc_add = disassemble_line(&line_print, machinecode_buffer, i, false);
             printf("%s\n", line_print);
             i += pc_add;
             free(line_print);
@@ -235,10 +237,10 @@ main(int argc, char** argv)
 
     /* save assembled program */
     FILE* f = fopen(binary_output_filename, "wb");
-    fwrite(buffer + pc_offset, 1, program_counter - pc_offset, f);
+    fwrite(machinecode_buffer + pc_offset, 1, program_counter - pc_offset, f);
     fclose(f);
 
-    free(buffer);
+    free(machinecode_buffer);
     free(labels);
     free(label_references);
     free(bytes);

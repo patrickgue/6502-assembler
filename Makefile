@@ -17,9 +17,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 CFLAGS=-g -Wall
-TARGET_ASM="bin/as65"
-TARGET_DASM="bin/das65"
-TARGET_TEST="bin/test"
+TARGET_ASM=bin/as65
+TARGET_DASM=bin/das65
+TARGET_TEST=bin/test
 
 SRCS_ASM=src/assembler.c src/disassembler.c src/helper.c
 SRCS_DASM=src/disassembler_cli.c src/disassembler.c src/helper.c
@@ -32,7 +32,7 @@ OBJS_TEST=$(SRCS_TEST:.c=.o)
 
 all: create_bin $(TARGET_ASM) $(TARGET_DASM)
 
-create_bin:
+create_bin: bin/
 	mkdir -p bin
 
 
