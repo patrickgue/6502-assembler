@@ -19,13 +19,15 @@
 CFLAGS=-g -Wall
 TARGET_ASM="bin/as65"
 TARGET_DASM="bin/das65"
+TARGET_TEST="bin/test"
 
 SRCS_ASM=src/assembler.c src/disassembler.c src/helper.c
 SRCS_DASM=src/disassembler_cli.c src/disassembler.c src/helper.c
-
+SRCS_TEST=src/test.c src/helper.c
 
 OBJS_ASM=$(SRCS_ASM:.c=.o)
 OBJS_DASM=$(SRCS_DASM:.c=.o)
+OBJS_TEST=$(SRCS_TEST:.c=.o)
 
 
 all: create_bin $(TARGET_ASM) $(TARGET_DASM)
@@ -40,6 +42,8 @@ $(TARGET_ASM):$(OBJS_ASM)
 $(TARGET_DASM):$(OBJS_DASM)
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(TARGET_TEST):$(OBJS_TEST)
+	$(CC) $(CFLAGS) -o $@ $^
 
 %.o:%.c
 	$(CC) $(CFLAGS) $^ -c -o $@
@@ -47,3 +51,8 @@ $(TARGET_DASM):$(OBJS_DASM)
 
 clean:
 	rm -f $(TARGET_ASM) $(TARGET_DASM) $(OBJS_ASM) $(OBJS_DASM)
+
+
+test: $(TARGET_TEST)
+	./bin/test
+	cd src/test && ./test.sh

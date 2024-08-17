@@ -3,12 +3,14 @@
 TEST() {
     echo -n -e "$1\t"
     ../../bin/as65 -i $2 -o $3.test
-    cmp $3 $3.test || (echo -e "\n$1 test failed"; exit 1);
-    rm $3.test
-    echo "[SUCCESSFUL]"
+    if cmp $3 $3.test; then
+        echo "[SUCCESSFUL]";
+        rm $3.test
+    else
+        echo -e "\n$1 test failed"
+    fi
 }
 
 TEST zeropage zeropage.s zeropage.bin
 TEST jump_offsets jmp_offs.s jmp_offs.bin 
 
-echo "ALL TESTS SUCCESSFUL"

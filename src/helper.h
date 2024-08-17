@@ -36,6 +36,9 @@ contains(char* str, char* search);
 char*
 trim(char*);
 
+void
+strtrim(char*);
+
 int
 strpos(char* str, char* target);
 
@@ -44,4 +47,8 @@ get_timestamp_ms();
 
 char*
 str_sep(char**, char);
+
+void
+strsepa(char *, int, char *, int, char);
+
 #endif /* HELPER_H */

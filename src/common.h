@@ -1,5 +1,10 @@
 #ifndef common_h
 #define common_h
+
+
+#define PATH_MAX_LEN 256
+#define BUFF_LEN 1024
+
 /*
 Address Modes:
 

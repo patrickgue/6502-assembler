@@ -37,212 +37,212 @@ int label_references_count;
 void
 usage()
 {
-  printf("Usage:\nas65 [-vl] -i [FILE] -o [FILE]\n");
+    printf("Usage:\nas65 [-vl] -i [FILE] -o [FILE]\n");
 }
 
 int
 main(int argc, char** argv)
 {
-  int opt;
-  bool verbose_flag = false;
-  char* assembly_code_filename;
-  char* binary_output_filename;
+    int opt;
+    bool verbose_flag = false;
+    char assembly_code_filename[PATH_MAX_LEN] = "";
+    char binary_output_filename[PATH_MAX_LEN] = "";
+    char line[BUFF_LEN];
+    FILE *assembly_code_file;
 
-  /* parsing arguments */
-  while ((opt = getopt(argc, argv, "vli:o:")) != -1) {
-    switch (opt) {
-      case 'l':
-        welcome("as65");
-        break;
-      case 'v':
-        verbose_flag = true;
-        break;
-      case 'i':
-        if (optarg == NULL) {
-          usage();
-          return -1;
+    /* parsing arguments */
+    while ((opt = getopt(argc, argv, "vli:o:")) != -1) {
+        switch (opt) {
+        case 'l':
+            welcome("as65");
+            break;
+        case 'v':
+            verbose_flag = true;
+            break;
+        case 'i':
+            if (optarg == NULL) {
+                usage();
+                return -1;
+            }
+            strncpy(assembly_code_filename, optarg, PATH_MAX_LEN);
+            break;
+        case 'o':
+            if (optarg == NULL) {
+                usage();
+                return -1;
+            }
+            strncpy(binary_output_filename, optarg, PATH_MAX_LEN);
+            break;
+        default:
+            usage();
+            break;
         }
-        assembly_code_filename = (char*)malloc(strlen(optarg) + 1);
-        strcpy(assembly_code_filename, optarg);
-        break;
-      case 'o':
-        if (optarg == NULL) {
-          usage();
-          return -1;
-        }
-        binary_output_filename = (char*)malloc(strlen(optarg) + 1);
-        strcpy(binary_output_filename, optarg);
-        break;
-      default:
+    }
+
+    /* check if both input and output file were loaded correctly */
+    if (strlen(assembly_code_filename) == 0 || strlen(binary_output_filename) == 0) {
         usage();
-        break;
+        return -1;
     }
-  }
 
-  /* check if both input and output file were loaded correctly */
-  if (assembly_code_filename == NULL || binary_output_filename == NULL) {
-    usage();
-    return -1;
-  }
+    assembly_code_file = fopen(assembly_code_filename, "r");
+    if (assembly_code_file == NULL)
+    {
+        fprintf(stderr, "Unable to open source file '%s'\n", assembly_code_filename);
+        return -1;
+    }
 
-  char *assembly_code, *code_brkb, *line;
-  size_t assembly_code_size =
-    readfile(&assembly_code, assembly_code_filename, false);
-
-  int arb_index = 0;
+    int arb_index = 0;
   
-  uint32_t program_counter = 0;
-  uint16_t pc_offset = 0;
-  bool pc_offset_set = false;
+    uint32_t program_counter = 0;
+    uint16_t pc_offset = 0;
+    bool pc_offset_set = false;
 
-  uint8_t* buffer = (uint8_t*)malloc(0);
-  uint8_t* bytes = (uint8_t*)malloc(3);
+    uint8_t* buffer = (uint8_t*)malloc(0);
+    uint8_t* bytes = (uint8_t*)malloc(3);
 
-  labels = malloc(0);
-  label_references = malloc(0);
+    labels = malloc(0);
+    label_references = malloc(0);
 
-  if (assembly_code_size == 0)
-    return 1;
-
-  line = strtok_r(assembly_code, "\n", &code_brkb);
-  while (line != NULL) {
-    char *pseudo_op, *label_name;
-    bool force_word = false;
-    line = trim(remove_comment(line));
-
-    if (verbose_flag) {
-      printf("\"%s\"\n", line);
-    }
-
-    line_type current_line_type = get_line_type(line);
-    switch (current_line_type) {
-      case op_with_label:
-      case operation:
-        if (current_line_type == op_with_label) {
-          force_word = true;
-          strcpy(line, add_label_reference(line, program_counter));
-          if (verbose_flag) {
-            printf("tmp w/o label: %s\n", line);
-          }
-        }
-
-        size_t op_size = construct_binopt(line, &bytes, force_word);
+    while ((fgets(line, BUFF_LEN, assembly_code_file)) != NULL) {
+        bool force_word = false;
+        remove_comment(line);
+        strtrim(line);
 
         if (verbose_flag) {
-          printf("(%zu) %02x ", op_size, bytes[0]);
-          if (op_size > 1)
-            printf(" %02x ", bytes[1]);
-          if (op_size > 2)
-            printf("%02x", bytes[2]);
-          printf("\n");
+            printf("LINE: \"%s\"\n", line);
         }
 
-        program_counter += op_size;
-        buffer = (uint8_t*)realloc(buffer, program_counter * sizeof(uint8_t));
-        for (int i = 0; i < op_size; i++) {
-          buffer[program_counter - op_size + i] = bytes[i];
+        line_type current_line_type = get_line_type(line);
+        switch (current_line_type) {
+        case op_with_label:
+        case operation:
+            if (current_line_type == op_with_label) {
+                force_word = true;
+                strcpy(line, add_label_reference(line, program_counter));
+                if (verbose_flag) {
+                    printf("tmp w/o label: %s\n", line);
+                }
+            }
+
+            size_t op_size = construct_binopt(line, &bytes, force_word);
+
+            if (verbose_flag) {
+                printf("(%zu) %02x ", op_size, bytes[0]);
+                if (op_size > 1)
+                    printf(" %02x ", bytes[1]);
+                if (op_size > 2)
+                    printf("%02x", bytes[2]);
+                printf("\n");
+            }
+
+            program_counter += op_size;
+            buffer = (uint8_t*)realloc(buffer, program_counter * sizeof(uint8_t));
+            for (int i = 0; i < op_size; i++) {
+                buffer[program_counter - op_size + i] = bytes[i];
+            }
+
+            break;
+        case pseudoop:
+            char args[BUFF_LEN];
+            strsepa(line, BUFF_LEN, args, BUFF_LEN, ' ');
+            if (strcmp(line, ".pc") == 0 || strcmp(line, ".org") == 0) {
+                strsepa(args, BUFF_LEN, NULL, 0, ' ');
+                int new_program_counter = parse_number(args, absolute);
+                if(new_program_counter < program_counter) {
+                    printf("Program Counter Error: Can't set new program counter lower than current program counter. \nnew: %d / old: %d\n",new_program_counter,program_counter);
+                    return -1;
+                }
+                program_counter = new_program_counter;
+                if (!pc_offset_set) {
+                    pc_offset = program_counter;
+                    pc_offset_set = true;
+                }
+            } else if (strcmp(line, ".byte") == 0) {
+                buffer = (uint8_t*) realloc(buffer, (program_counter + 1) * sizeof(uint8_t) ); 
+                buffer[program_counter] = parse_number(args, zeropage) & 0x00ff;
+                program_counter++;
+            } else if (strcmp(line, ".word") == 0) {
+                buffer = (uint8_t*) realloc(buffer, (program_counter + 2) * sizeof(uint8_t) );buffer[program_counter] = (parse_number(args, absolute) & 0x00ff);
+                buffer[program_counter + 1] =
+                    (parse_number(line, absolute) & 0xff00) >> 8;
+                program_counter += 2;
+            } else if (strcmp(line, ".str") == 0) {
+                for (arb_index = 1; arb_index < strlen(line) - 1; arb_index++) {  
+                    buffer[program_counter++] = line[arb_index];
+                }
+            }
+            break;
+        case lbl:
+            add_label(line, program_counter, true);
+            break;
+        case def:
+            char def[BUFF_LEN];
+            strsepa(line, BUFF_LEN, def, BUFF_LEN, '=');
+            trim(line);
+            trim(def);
+            add_label(line, parse_number(def, absolute), false);
+            break;
+        case skip:
+            /* skip to next line if current line is empty */
+            break;
         }
-
-        break;
-      case pseudoop:
-        pseudo_op = str_sep(&line, ' ');
-        if (strcmp(pseudo_op, ".pc") == 0 || strcmp(pseudo_op, ".org") == 0) {
-          int new_program_counter = parse_number(str_sep(&line, ' '), absolute);
-          if(new_program_counter < program_counter) {
-            printf("Program Counter Error: Can't set new program counter lower than current program counter. \nnew: %d / old: %d\n",new_program_counter,program_counter);
-            return -1;
-          }
-          program_counter = new_program_counter;
-          if (!pc_offset_set) {
-            pc_offset = program_counter;
-            pc_offset_set = true;
-          }
-        } else if (strcmp(pseudo_op, ".byte") == 0) {
-	  buffer = (uint8_t*) realloc(buffer, (program_counter + 1) * sizeof(uint8_t) ); 
-          buffer[program_counter] = parse_number(line, zeropage) & 0x00ff;
-          program_counter++;
-        } else if (strcmp(pseudo_op, ".word") == 0) {
-          buffer = (uint8_t*) realloc(buffer, (program_counter + 2) * sizeof(uint8_t) );buffer[program_counter] = (parse_number(line, absolute) & 0x00ff);
-          buffer[program_counter + 1] =
-            (parse_number(line, absolute) & 0xff00) >> 8;
-          program_counter += 2;
-        } else if (strcmp(pseudo_op, ".str") == 0) {
-	  for (arb_index = 1; arb_index < strlen(line) - 1; arb_index++) {  
-	    buffer[program_counter++] = line[arb_index];
-	  }
-	}
-        break;
-      case lbl:
-        add_label(line, program_counter, true);
-        break;
-      case def:
-        label_name = str_sep(&line, '=');
-        add_label(trim(label_name), parse_number(trim(line), absolute), false);
-        break;
-      case skip:
-        /* skip to next line if current line is empty */
-        break;
     }
 
-    /* fetch next line */
-    line = strtok_r(NULL, "\n", &code_brkb);
-  }
-
-  /* inject label references */
-  for (int i = 0; i < label_references_count; i++) {
-    for (int j = 0; j < labels_count; j++) {
-      if (strcmp(label_references[i].labelname, labels[j].labelname) == 0) {
-        if (label_references[i].rel) {
-          /* signed */ int8_t b =
-            (int8_t)((labels[j].pc - label_references[i].pc - 2) & 0x00ff);
-          buffer[label_references[i].pc + 1] = b;
-        } else {
-          buffer[label_references[i].pc + 1] = (labels[j].pc & 0x00ff);
-          buffer[label_references[i].pc + 2] = (labels[j].pc & 0xff00) >> 8;
-        }
-      }
-    }
-  }
-
-  /* print labels, label references and disassembled code */
-  if (verbose_flag) {
-    printf("Labels:\n");
-    for (int i = 0; i < labels_count; i++) {
-      printf("%04x %s\n", labels[i].pc, labels[i].labelname);
-    }
-
-    printf("\nLabel references:\n");
+    /* inject label references */
     for (int i = 0; i < label_references_count; i++) {
-      printf("%04x %s %zu %s\n",
-             label_references[i].pc,
-             label_references[i].labelname,
-             label_references[i].size,
-             label_references[i].rel ? "rel" : "abs");
+        for (int j = 0; j < labels_count; j++) {
+            if (strcmp(label_references[i].labelname, labels[j].labelname) == 0) {
+                if (label_references[i].rel) {
+                    /* signed */ int8_t b =
+                        (int8_t)((labels[j].pc - label_references[i].pc - 2) & 0x00ff);
+                    buffer[label_references[i].pc + 1] = b;
+                } else {
+                    buffer[label_references[i].pc + 1] = (labels[j].pc & 0x00ff);
+                    buffer[label_references[i].pc + 2] = (labels[j].pc & 0xff00) >> 8;
+                }
+            }
+        }
     }
 
-    printf("\nProgram (disassembled)\n");
-    uint32_t i = pc_offset, pc_add;
+    /* print labels, label references and disassembled code */
+    if (verbose_flag) {
+        printf("Labels:\n");
+        for (int i = 0; i < labels_count; i++) {
+            printf("%04x %s\n", labels[i].pc, labels[i].labelname);
+        }
 
-    do {
-      char* line_print;
-      pc_add = disassemble_line(&line_print, buffer, i, false);
-      printf("%s\n", line_print);
-      i += pc_add;
-      free(line_print);
-    } while (pc_add != 0 && i <= program_counter);
-  }
+        printf("\nLabel references:\n");
+        for (int i = 0; i < label_references_count; i++) {
+            printf("%04x %s %zu %s\n",
+                   label_references[i].pc,
+                   label_references[i].labelname,
+                   label_references[i].size,
+                   label_references[i].rel ? "rel" : "abs");
+        }
 
-  /* save assembled program */
-  FILE* f = fopen(binary_output_filename, "wb");
-  fwrite(buffer + pc_offset, 1, program_counter - pc_offset, f);
-  fclose(f);
+        printf("\nProgram (disassembled)\n");
+        uint32_t i = pc_offset, pc_add;
 
-  free(buffer);
-  free(labels);
-  free(label_references);
-  free(bytes);
-  free(line);
-  return 0;
+        do {
+            char* line_print;
+            pc_add = disassemble_line(&line_print, buffer, i, false);
+            printf("%s\n", line_print);
+            i += pc_add;
+            free(line_print);
+        } while (pc_add != 0 && i <= program_counter);
+    }
+
+    /* save assembled program */
+    FILE* f = fopen(binary_output_filename, "wb");
+    fwrite(buffer + pc_offset, 1, program_counter - pc_offset, f);
+    fclose(f);
+
+    free(buffer);
+    free(labels);
+    free(label_references);
+    free(bytes);
+    return 0;
 }
 
 size_t
@@ -543,13 +543,13 @@ add_label_reference(char* line, uint16_t pc)
 char*
 remove_comment(char* line)
 {
-  if (contains_single(line, ';')) {
-    for (int i = 0; i < strlen(line); i++) {
-      if (line[i] == ';') {
-        line[i] = '\0';
-        break;
-      }
+    if (contains_single(line, ';')) {
+        for (int i = 0; i < strlen(line); i++) {
+            if (line[i] == ';') {
+                line[i] = '\0';
+                break;
+            }
+        }
     }
-  }
-  return line;
+    return line;
 }

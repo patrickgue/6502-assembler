@@ -175,3 +175,43 @@ str_sep(char** src, char delim)
   buffer = (char*) realloc(buffer, (strlen(buffer) + 1) * sizeof(char));
   return buffer;
 }
+
+/* separate string */
+void
+strsepa(char *src, int src_len, char *buff, int buff_len, char sep)
+{
+    int i, j = 0, found = 0, orig_len = strlen(src);
+
+    for (i = 0; i < orig_len && i < src_len; i++)
+    {
+        if (!found)
+        {
+            if (src[i] == sep)
+            {
+                src[i] = '\0';
+                found = 1;
+            }
+        }
+        else if (j < buff_len)
+        {
+            buff[j++] = src[i];
+        }
+    }
+}
+
+
+void
+strtrim(char *str)
+{
+    int index, i;
+
+    /* find first non whitespace character */
+    for (index = 0; str[index] == ' ' || str[index] == '\n' || str[index] == '\r'; index++);
+
+    for (i = index; i < strlen(str); i++)
+        str[i - index] = str[i];
+    str[i - index] = '\0';
+
+    for (i = strlen(str) - 1; (str[i] == ' ' || str[i] == '\n' || str[i] == '\r') && i >= 0; i--)
+        str[i] = 0;
+}
