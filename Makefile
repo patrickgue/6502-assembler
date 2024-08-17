@@ -30,9 +30,9 @@ OBJS_DASM=$(SRCS_DASM:.c=.o)
 OBJS_TEST=$(SRCS_TEST:.c=.o)
 
 
-all: create_bin $(TARGET_ASM) $(TARGET_DASM)
+all: bin $(TARGET_ASM) $(TARGET_DASM)
 
-create_bin: bin/
+bin:
 	mkdir -p bin
 
 
